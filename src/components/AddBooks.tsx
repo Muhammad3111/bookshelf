@@ -6,7 +6,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useCreateBookMutation } from "../services/books";
 import CryptoJS from "crypto-js";
 
@@ -28,60 +28,63 @@ const style = {
   p: 4,
   display: "flex",
   flexDirection: "column",
-  gap: "20px",
+  gap: 2,
 };
 
 export default function AddBooks({ open, handleClose }: ComponentProps) {
   const [isbn, setIsbn] = useState<string>("");
   const [createBook, { isLoading }] = useCreateBookMutation();
-  const generateSign = () => {
+
+  const generateSign = useCallback(() => {
     const Key = localStorage.getItem("userKey") as string;
     const url = "/books";
     const method = "POST";
     const body = JSON.stringify({ isbn });
-    const secret = localStorage.getItem("secret");
+    const secret = localStorage.getItem("secret") ?? "";
     const Sign = CryptoJS.MD5(`${method}${url}${body}${secret}`).toString();
     return { Key, Sign };
-  };
+  }, [isbn]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createBook({
-        isbn,
-        Key: generateSign()?.Key,
-        Sign: generateSign()?.Sign,
-      });
+      const { Key, Sign } = generateSign();
+      await createBook({ isbn, Key, Sign });
       handleClose();
     } catch (error) {
-      console.log("error: ", error);
+      console.error("Error creating book:", error);
     }
   };
+
   return (
-    <Modal
-      open={open}
-      onClose={handleClose}
-      aria-labelledby="modal-modal-title"
-      aria-describedby="modal-modal-description"
-    >
-      <Box sx={style}>
-        <Typography variant="h4">Create New Book</Typography>
-        <form
-          onSubmit={handleSubmit}
-          style={{ display: "flex", flexDirection: "column", gap: "20px" }}
-        >
-          <FormControl sx={{ width: "100%" }}>
-            <TextField
-              id="outlined-basic"
-              label="Isbn of Book"
-              variant="outlined"
-              onChange={(e) => setIsbn(e.target.value)}
-            />
-          </FormControl>
-          <Button type="submit" variant="contained" disabled={isLoading}>
-            Submit
-          </Button>
-        </form>
-      </Box>
-    </Modal>
+    <>
+      <Modal
+        open={open}
+        onClose={handleClose}
+        aria-labelledby="modal-modal-title"
+        aria-describedby="modal-modal-description"
+      >
+        <Box sx={style}>
+          <Typography variant="h4">Create New Book</Typography>
+          <form
+            onSubmit={handleSubmit}
+            style={{ display: "flex", flexDirection: "column", gap: "20px" }}
+          >
+            <FormControl sx={{ width: "100%" }}>
+              <TextField
+                id="outlined-basic"
+                label="ISBN of Book"
+                variant="outlined"
+                value={isbn}
+                onChange={(e) => setIsbn(e.target.value)}
+              />
+            </FormControl>
+            <Button type="submit" variant="contained" disabled={isLoading}>
+              Submit
+            </Button>
+          </form>
+        </Box>
+      </Modal>
+    </>
   );
 }
